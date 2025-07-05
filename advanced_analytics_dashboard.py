@@ -524,8 +524,7 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             mae_arima = mean_absolute_error(test_data['total_price'], forecast_arima)
             rmse_arima = np.sqrt(mean_squared_error(test_data['total_price'], forecast_arima))
             
-            st.metric("ARIMA RMSE", f"R$ {rmse_arima:,.2f}")
-            st.metric("ARIMA MAE", f"R$ {mae_arima:,.2f}")
+            st.metric("Prediction given by ARIMA Model", f"R$ {rmse_arima:,.2f}") #ARIMA RMSE value
     except Exception as e:
         st.error(f"ARIMA model error: {str(e)}")
     
@@ -545,8 +544,7 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             mae_sarima = mean_absolute_error(test_data['total_price'], forecast_sarima)
             rmse_sarima = np.sqrt(mean_squared_error(test_data['total_price'], forecast_sarima))
             
-            st.metric("SARIMA RMSE", f"R$ {rmse_sarima:,.2f}")
-            st.metric("SARIMA MAE", f"R$ {mae_sarima:,.2f}")
+            st.metric("Prediction given by SARIMA Model", f"R$ {rmse_sarima:,.2f}") #SARIMA RMSE value
         except Exception as e:
             st.error(f"SARIMA model error: {str(e)}")
     

@@ -85,16 +85,29 @@ def filter_data_advanced(all_df):
         st.header("Advanced Filters")
         
         # Category and Subcategory filters
-        categories = sorted(all_df["product_category_name_english"].unique())
-        selected_categories = st.multiselect(
+                # Step 1: Get and sort categories
+        categories = sorted(all_df["product_category_name_english"].dropna().unique())
+
+        # Step 2: Add 'Select All' at the beginning of the list
+        category_options = ["Select All"] + categories
+
+        # Step 3: Multiselect with 'Select All' logic
+        selected_categories_raw = st.multiselect(
             "Select Categories:",
-            options=categories,
+            options=category_options,
             default=categories[:3] if len(categories) > 3 else categories,
             placeholder="Select categories"
         )
-        
+
+        # Step 4: If 'Select All' is chosen, treat as selecting all categories
+        if "Select All" in selected_categories_raw:
+            selected_categories = categories
+        else:
+            selected_categories = selected_categories_raw
+
+        # Step 5: Handle subcategories based on selected categories
         if selected_categories:
-            subcategories = sorted(all_df[all_df["product_category_name_english"].isin(selected_categories)]["product_subcategory"].unique())
+            subcategories = sorted(all_df[all_df["product_category_name_english"].isin(selected_categories)]["product_subcategory"].dropna().unique())
             selected_subcategories = st.multiselect(
                 "Select Subcategories:",
                 options=subcategories,
@@ -103,6 +116,7 @@ def filter_data_advanced(all_df):
             )
         else:
             selected_subcategories = []
+
         
         # City filter
         cities = sorted(all_df["customer_city"].unique())
@@ -205,6 +219,7 @@ def category_subcategory_analysis(df):
         template='plotly_white'
     )
     fig_category_trend.update_layout(
+        legend_title_text='Product Category',
         xaxis_title="Month",
         yaxis_title="Total Sales (R$)",
         height=500
@@ -224,6 +239,7 @@ def category_subcategory_analysis(df):
         barmode='group'
     )
     fig_subcategory.update_layout(
+        legend_title_text='Product Sub-category',
         xaxis_title="Category",
         yaxis_title="Total Sales (R$)",
         height=500
@@ -270,6 +286,7 @@ def category_subcategory_analysis(df):
         template='plotly_white'
     )
     fig_seasonal.update_layout(
+        legend_title_text='Product Category',
         xaxis_title="Month",
         yaxis_title="Total Sales (R$)",
         height=400
@@ -277,83 +294,83 @@ def category_subcategory_analysis(df):
     
     st.plotly_chart(fig_seasonal, use_container_width=True)
 
-def seasonal_analysis(df):
-    """Seasonal Analysis with Decomposition"""
-    st.header("🌍 Seasonal Sales Analysis")
+# def seasonal_analysis(df):
+#     """Seasonal Analysis with Decomposition"""
+#     st.header("🌍 Seasonal Sales Analysis")
     
-    if df.empty:
-        st.warning("No data available for the selected filters.")
-        return
+#     if df.empty:
+#         st.warning("No data available for the selected filters.")
+#         return
     
-    # Prepare time series data
-    df_ts = df.copy()
-    df_ts['date'] = df_ts['order_purchase_timestamp'].dt.date
-    daily_sales = df_ts.groupby('date')['total_price'].sum().reset_index()
-    daily_sales['date'] = pd.to_datetime(daily_sales['date'])
-    daily_sales = daily_sales.set_index('date').sort_index()
+#     # Prepare time series data
+#     df_ts = df.copy()
+#     df_ts['date'] = df_ts['order_purchase_timestamp'].dt.date
+#     daily_sales = df_ts.groupby('date')['total_price'].sum().reset_index()
+#     daily_sales['date'] = pd.to_datetime(daily_sales['date'])
+#     daily_sales = daily_sales.set_index('date').sort_index()
     
-    # Resample to monthly for better seasonal analysis
-    monthly_sales = daily_sales.resample('M').sum()
+#     # Resample to monthly for better seasonal analysis
+#     monthly_sales = daily_sales.resample('M').sum()
     
-    if len(monthly_sales) < 12:
-        st.info("Insufficient data for seasonal decomposition (need at least 12 months)")
-        return
+#     if len(monthly_sales) < 12:
+#         st.info("Insufficient data for seasonal decomposition (need at least 12 months)")
+#         return
     
-    # Seasonal decomposition
-    try:
-        decomposition = seasonal_decompose(monthly_sales['total_price'], model='additive', period=12)
+#     # Seasonal decomposition
+#     try:
+#         decomposition = seasonal_decompose(monthly_sales['total_price'], model='additive', period=12)
         
-        # Plot decomposition
-        fig_decomp = make_subplots(
-            rows=4, cols=1,
-            subplot_titles=('Original', 'Trend', 'Seasonal', 'Residual'),
-            vertical_spacing=0.05
-        )
+#         # Plot decomposition
+#         fig_decomp = make_subplots(
+#             rows=4, cols=1,
+#             subplot_titles=('Original', 'Trend', 'Seasonal', 'Residual'),
+#             vertical_spacing=0.05
+#         )
         
-        fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=monthly_sales['total_price'], name='Original'), row=1, col=1)
-        fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=decomposition.trend, name='Trend'), row=2, col=1)
-        fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=decomposition.seasonal, name='Seasonal'), row=3, col=1)
-        fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=decomposition.resid, name='Residual'), row=4, col=1)
+#         fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=monthly_sales['total_price'], name='Original'), row=1, col=1)
+#         fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=decomposition.trend, name='Trend'), row=2, col=1)
+#         fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=decomposition.seasonal, name='Seasonal'), row=3, col=1)
+#         fig_decomp.add_trace(go.Scatter(x=monthly_sales.index, y=decomposition.resid, name='Residual'), row=4, col=1)
         
-        fig_decomp.update_layout(height=600, title_text="Seasonal Decomposition of Sales")
-        st.plotly_chart(fig_decomp, use_container_width=True)
+#         fig_decomp.update_layout(height=600, title_text="Seasonal Decomposition of Sales")
+#         st.plotly_chart(fig_decomp, use_container_width=True)
         
-        # Seasonal strength analysis
-        seasonal_strength = abs(decomposition.seasonal).mean() / abs(monthly_sales['total_price']).mean()
-        st.metric("Seasonal Strength", f"{seasonal_strength:.2%}")
+#         # Seasonal strength analysis
+#         seasonal_strength = abs(decomposition.seasonal).mean() / abs(monthly_sales['total_price']).mean()
+#         st.metric("Seasonal Strength", f"{seasonal_strength:.2%}")
         
-        if seasonal_strength > 0.1:
-            st.success("Strong seasonal pattern detected")
-        elif seasonal_strength > 0.05:
-            st.info("Moderate seasonal pattern detected")
-        else:
-            st.warning("Weak seasonal pattern detected")
+#         if seasonal_strength > 0.1:
+#             st.success("Strong seasonal pattern detected")
+#         elif seasonal_strength > 0.05:
+#             st.info("Moderate seasonal pattern detected")
+#         else:
+#             st.warning("Weak seasonal pattern detected")
             
-    except Exception as e:
-        st.error(f"Error in seasonal decomposition: {str(e)}")
+#     except Exception as e:
+#         st.error(f"Error in seasonal decomposition: {str(e)}")
     
-    # Monthly heatmap
-    st.subheader("📊 Monthly Sales Heatmap")
-    df_monthly = df.copy()
-    df_monthly['year'] = df_monthly['order_purchase_timestamp'].dt.year
-    df_monthly['month'] = df_monthly['order_purchase_timestamp'].dt.month
+#     # Monthly heatmap
+#     st.subheader("📊 Monthly Sales Heatmap")
+#     df_monthly = df.copy()
+#     df_monthly['year'] = df_monthly['order_purchase_timestamp'].dt.year
+#     df_monthly['month'] = df_monthly['order_purchase_timestamp'].dt.month
     
-    monthly_heatmap = df_monthly.groupby(['year', 'month'])['total_price'].sum().reset_index()
-    monthly_heatmap_pivot = monthly_heatmap.pivot(index='year', columns='month', values='total_price')
+#     monthly_heatmap = df_monthly.groupby(['year', 'month'])['total_price'].sum().reset_index()
+#     monthly_heatmap_pivot = monthly_heatmap.pivot(index='year', columns='month', values='total_price')
     
-    fig_heatmap = px.imshow(
-        monthly_heatmap_pivot,
-        title='Monthly Sales Heatmap',
-        color_continuous_scale='Viridis',
-        aspect='auto'
-    )
-    fig_heatmap.update_layout(
-        xaxis_title="Month",
-        yaxis_title="Year",
-        height=400
-    )
+#     fig_heatmap = px.imshow(
+#         monthly_heatmap_pivot,
+#         title='Monthly Sales Heatmap',
+#         color_continuous_scale='Viridis',
+#         aspect='auto'
+#     )
+#     fig_heatmap.update_layout(
+#         xaxis_title="Month",
+#         yaxis_title="Year",
+#         height=400
+#     )
     
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+#     st.plotly_chart(fig_heatmap, use_container_width=True)
 
 def city_month_analysis(df):
     """City-wise and Month-wise Sales Analysis"""
@@ -364,8 +381,16 @@ def city_month_analysis(df):
         return None, None
     
     # Top cities by sales
+        # Compute total sales by city
     city_sales = df.groupby('customer_city')['total_price'].sum().sort_values(ascending=False).head(15)
-    
+
+    # Save top-selling cities BEFORE reversing for later use
+    top_cities_list = city_sales.index.tolist()
+
+    # Reverse for barh plot so top cities appear at the top
+    city_sales = city_sales[::-1]
+
+    # Plot: Top 15 cities by sales
     fig_city_sales = px.bar(
         x=city_sales.values,
         y=city_sales.index,
@@ -379,21 +404,20 @@ def city_month_analysis(df):
         yaxis_title="City",
         height=500
     )
-    
     st.plotly_chart(fig_city_sales, use_container_width=True)
-    
-    # City-month analysis
+
+    # 📅 City-Month Analysis
     st.subheader("📅 City-Month Sales Patterns")
     df_city_month = df.copy()
     df_city_month['month'] = df_city_month['order_purchase_timestamp'].dt.strftime('%Y-%m')
-    
-    # Get top 5 cities for detailed analysis
-    top_cities = city_sales.head(5).index.tolist()
-    city_month_data = df_city_month[df_city_month['customer_city'].isin(top_cities)]
-    
+
+    # Use top 5 cities from the original (non-reversed) list
+    top_5_cities = top_cities_list[:5]
+    city_month_data = df_city_month[df_city_month['customer_city'].isin(top_5_cities)]
+
     if not city_month_data.empty:
         city_month_sales = city_month_data.groupby(['customer_city', 'month'])['total_price'].sum().reset_index()
-        
+
         fig_city_month = px.line(
             city_month_sales,
             x='month',
@@ -403,22 +427,22 @@ def city_month_analysis(df):
             template='plotly_white'
         )
         fig_city_month.update_layout(
+            legend_title_text='Customer City',
             xaxis_title="Month",
             yaxis_title="Total Sales (R$)",
             height=400
         )
-        
         st.plotly_chart(fig_city_month, use_container_width=True)
-    
-    # City-category preferences
+
+    # 🏪 City-Category Preferences
     st.subheader("🏪 City-Category Preferences")
     city_category = df.groupby(['customer_city', 'product_category_name_english'])['total_price'].sum().reset_index()
     city_category_pivot = city_category.pivot(index='customer_city', columns='product_category_name_english', values='total_price').fillna(0)
-    
-    # Show top 10 cities
-    top_10_cities = city_sales.head(10).index.tolist()
+
+    # Use top 10 cities from original city_sales
+    top_10_cities = top_cities_list[:10]
     city_category_top = city_category_pivot.loc[city_category_pivot.index.isin(top_10_cities)]
-    
+
     fig_city_category = px.imshow(
         city_category_top,
         title='Category Preferences by City (Top 10 Cities)',
@@ -430,10 +454,11 @@ def city_month_analysis(df):
         yaxis_title="City",
         height=400
     )
-    
     st.plotly_chart(fig_city_category, use_container_width=True)
-    
-    return city_sales, city_month_sales if 'city_month_sales' in locals() else None
+
+    # Return updated variables
+    return city_sales[::-1], city_month_sales if 'city_month_sales' in locals() else None
+
 
 def advanced_forecasting(df, selected_categories, selected_cities):
     """Advanced Forecasting with Multiple Models"""
@@ -499,8 +524,8 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             mae_arima = mean_absolute_error(test_data['total_price'], forecast_arima)
             rmse_arima = np.sqrt(mean_squared_error(test_data['total_price'], forecast_arima))
             
-            st.metric("ARIMA MAE", f"R$ {mae_arima:,.2f}")
             st.metric("ARIMA RMSE", f"R$ {rmse_arima:,.2f}")
+            st.metric("ARIMA MAE", f"R$ {mae_arima:,.2f}")
     except Exception as e:
         st.error(f"ARIMA model error: {str(e)}")
     
@@ -520,8 +545,8 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             mae_sarima = mean_absolute_error(test_data['total_price'], forecast_sarima)
             rmse_sarima = np.sqrt(mean_squared_error(test_data['total_price'], forecast_sarima))
             
-            st.metric("SARIMA MAE", f"R$ {mae_sarima:,.2f}")
             st.metric("SARIMA RMSE", f"R$ {rmse_sarima:,.2f}")
+            st.metric("SARIMA MAE", f"R$ {mae_sarima:,.2f}")
         except Exception as e:
             st.error(f"SARIMA model error: {str(e)}")
     
@@ -537,11 +562,11 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             y=monthly_sales['total_price'],
             mode='lines',
             name='Actual',
-            line=dict(color='black')
+            line=dict(color='white')
         ))
         
         # Forecasts
-        colors = ['red', 'blue', 'green', 'orange']
+        colors = ['green', 'orange']
         for i, (model_name, forecast) in enumerate(forecasts.items()):
             fig_forecast.add_trace(go.Scatter(
                 x=test_data.index,
@@ -562,10 +587,11 @@ def advanced_forecasting(df, selected_categories, selected_cities):
     
     # Future forecasting
     st.subheader("🔮 Future Sales Forecast")
-    forecast_months = st.slider("Number of months to forecast", 1, 12, 6)
+    forecast_months = st.slider("Number of months to forecast", 1, 24, 6)
     
     if models:
         best_model_name = min(models.keys(), key=lambda x: models[x].aic if hasattr(models[x], 'aic') else float('inf'))
+        # Convert min into max to use ARIMA model instead of SARIMA
         best_model = models[best_model_name]
         
         # Generate future forecast
@@ -573,7 +599,6 @@ def advanced_forecasting(df, selected_categories, selected_cities):
         future_dates = pd.date_range(start=monthly_sales.index[-1] + pd.DateOffset(months=1), periods=forecast_months, freq='M')
         
         forecast_df = pd.DataFrame({
-            'Date': future_dates,
             'Forecasted Sales': future_forecast
         })
         
@@ -588,7 +613,7 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             y=monthly_sales['total_price'],
             mode='lines',
             name='Historical',
-            line=dict(color='black')
+            line=dict(color='white')
         ))
         
         # Future forecast
@@ -597,7 +622,7 @@ def advanced_forecasting(df, selected_categories, selected_cities):
             y=future_forecast,
             mode='lines',
             name='Future Forecast',
-            line=dict(color='red', dash='dash')
+            line=dict(color='orange')
         ))
         
         fig_future.update_layout(
@@ -622,9 +647,9 @@ def generate_recommendations(df, top_cities, selected_categories, selected_citie
     
     if top_cities is not None and not top_cities.empty:
         # Top performing cities
-        top_5_cities = top_cities.head(5)
+        top_10_cities = top_cities.head(10)
         
-        for city in top_5_cities.index:
+        for city in top_10_cities.index:
             city_data = df[df['customer_city'] == city]
             
             # Top categories for this city
@@ -639,7 +664,7 @@ def generate_recommendations(df, top_cities, selected_categories, selected_citie
             peak_month = city_monthly.idxmax()
             peak_month_name = pd.Timestamp(2020, peak_month, 1).strftime('%B')
             
-            with st.expander(f"📊 {city} - Total Sales: R$ {top_5_cities[city]:,.2f}"):
+            with st.expander(f"📊 {city} - Total Sales: R$ {top_10_cities[city]:,.2f}"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -693,12 +718,26 @@ def generate_recommendations(df, top_cities, selected_categories, selected_citie
     
     # Category-specific monthly recommendations
     st.subheader("📊 Category-Month Optimization")
-    
+
     category_monthly = df_monthly.groupby(['month_name', 'product_category_name_english'])['total_price'].sum().reset_index()
-    
+
+    # Define calendar month order
+    calendar_order = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December']
+
+    # Ensure proper ordering
+    category_monthly['month_name'] = pd.Categorical(
+        category_monthly['month_name'],
+        categories=calendar_order,
+        ordered=True
+    )
+
     # Find best performing category for each month
     best_category_by_month = category_monthly.loc[category_monthly.groupby('month_name')['total_price'].idxmax()]
-    
+
+    # Sort the final dataframe by month order
+    best_category_by_month = best_category_by_month.sort_values('month_name')
+
     fig_category_month = px.bar(
         best_category_by_month,
         x='month_name',
@@ -708,12 +747,15 @@ def generate_recommendations(df, top_cities, selected_categories, selected_citie
         template='plotly_white'
     )
     fig_category_month.update_layout(
+        legend_title_text='Product Category',
         xaxis_title="Month",
         yaxis_title="Sales (R$)",
         height=400
     )
-    
+
+
     st.plotly_chart(fig_category_month, use_container_width=True)
+
     
     # Generate specific recommendations
     st.subheader("🎯 Actionable Recommendations")
@@ -721,28 +763,43 @@ def generate_recommendations(df, top_cities, selected_categories, selected_citie
     recommendations = []
     
     # Inventory recommendations
+        # Inventory recommendations
+    inventory_recommendations = []
     for _, row in best_category_by_month.iterrows():
-        recommendations.append({
+        inventory_recommendations.append({
             "Month": row['month_name'],
             "Category": row['product_category_name_english'],
             "Action": "Increase inventory",
             "Reason": f"Best performing category in {row['month_name']}"
         })
-    
+
     # Marketing recommendations
-    for city in top_cities.head(3).index if top_cities is not None else []:
-        city_data = df[df['customer_city'] == city]
-        top_cat = city_data.groupby('product_category_name_english')['total_price'].sum().idxmax()
-        recommendations.append({
-            "City": city,
-            "Category": top_cat,
-            "Action": "Target marketing",
-            "Reason": f"Top category in {city}"
-        })
-    
-    if recommendations:
-        rec_df = pd.DataFrame(recommendations)
-        st.dataframe(rec_df, use_container_width=True)
+    marketing_recommendations = []
+    if top_cities is not None:
+        for city in top_cities.head(10).index:
+            city_data = df[df['customer_city'] == city]
+            top_cat = city_data.groupby('product_category_name_english')['total_price'].sum().idxmax()
+            marketing_recommendations.append({
+                "City": city,
+                "Category": top_cat,
+                "Action": "Target marketing",
+                "Reason": f"Top category in {city}"
+            })
+
+    # Display Inventory Recommendations
+    if inventory_recommendations:
+        st.subheader("📦 Inventory Recommendations")
+        inv_df = pd.DataFrame(inventory_recommendations)
+        inv_df.index = np.arange(1, len(inv_df) + 1)  # Set index starting from 1
+        st.dataframe(inv_df, use_container_width=True)
+
+    # Display Marketing Recommendations
+    if marketing_recommendations:
+        st.subheader("📢 Marketing Recommendations")
+        mkt_df = pd.DataFrame(marketing_recommendations)
+        mkt_df.index = np.arange(1, len(mkt_df) + 1)  # Set index starting from 1
+        st.dataframe(mkt_df, use_container_width=True)
+
 
 def retail_optimization_insights(df, selected_categories, selected_cities):
     """Retail Sales Optimization Insights"""
@@ -926,27 +983,24 @@ def main():
             st.metric("Avg Rating", f"{avg_rating} ⭐")
     
     # Create tabs for different analyses
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📈 Category Analysis", "🌍 Seasonal Analysis", "🏙️ City Analysis", 
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📈 Category Analysis", "🏙️ City Analysis", 
         "🔮 Forecasting", "💡 Recommendations", "🛒 Optimization"
     ])
     
     with tab1:
         category_subcategory_analysis(df_selection)
-    
+   
     with tab2:
-        seasonal_analysis(df_selection)
-    
-    with tab3:
         top_cities, city_month_sales = city_month_analysis(df_selection)
     
-    with tab4:
+    with tab3:
         advanced_forecasting(df_selection, selected_categories, selected_cities)
     
-    with tab5:
+    with tab4:
         generate_recommendations(df_selection, top_cities, selected_categories, selected_cities, date_range)
     
-    with tab6:
+    with tab5:
         retail_optimization_insights(df_selection, selected_categories, selected_cities)
     
     # Hide Streamlit UI elements
